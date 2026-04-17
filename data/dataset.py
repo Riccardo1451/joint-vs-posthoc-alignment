@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
 from mnist1d.data import make_dataset, get_dataset_args
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "cached")
@@ -31,7 +32,9 @@ def load_digits_dataset(force_reload=False) -> dict:
     X_images = X.reshape(-1, 8, 8)                  #(N, 1, 8, 8) for CNN
     y = raw.target.astype(np.int64)
 
-    data = {"X": X, "X_images": X_images, "y": y}
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    data = {"X": X, "X_images": X_images, "y": y, "X_train": X_train, "X_test": X_test, "y_train": y_train, "y_test": y_test}
 
 
     with open(DIGITS_CACHE, "wb") as f:

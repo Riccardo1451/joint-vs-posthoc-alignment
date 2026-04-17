@@ -10,10 +10,10 @@ def sample_batch(digits_data, mnist1d_data, K):
 
         #Sample K samples of the current class
 
-        idx_digits = np.random.choice(np.where(digits_data["y"]== classes)[0], K, replace=False)
+        idx_digits = np.random.choice(np.where(digits_data["y_train"]== classes)[0], K, replace=False)
         idx_mnist1d = np.random.choice(np.where(mnist1d_data["y_train"]== classes)[0], K, replace=False)
 
-        batch_digits = digits_data["X"][idx_digits] # (K, 8, 8)
+        batch_digits = digits_data["X_train"][idx_digits] # (K, 8, 8)
         batch_mnist1d = mnist1d_data["X_train"][idx_mnist1d] # (K, 40)
 
         complete_batch_digits.append(batch_digits)
