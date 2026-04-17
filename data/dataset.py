@@ -21,11 +21,11 @@ def load_digits_dataset(force_reload=False) -> dict:
 
 
     if os.path.exists(DIGITS_CACHE) and not force_reload:
-        print("Loading digits dataset from cache...")
+        print("Loading digits dataset from cache")
         with open(DIGITS_CACHE, "rb") as f:
             return pickle.load(f)
         
-    print("Loading digits dataset from source...")
+    print("Loading digits dataset from source")
     raw = load_digits()
 
     X = raw.data.astype(np.float32)/16.0            #Normalize to [0,1]
@@ -48,11 +48,11 @@ def load_mnist1d_dataset(force_reload=False, num_samples: int = 5000, seed: int 
     _ensure_cache_dir()
 
     if os.path.exists(MNIST1D_CACHE) and not force_reload:
-        print("Loading MNIST1D dataset from cache...")
+        print("Loading MNIST1D dataset from cache")
         with open(MNIST1D_CACHE, "rb") as f:
             return pickle.load(f)
 
-    print("Generating MNIST1D dataset...")
+    print("Generating MNIST1D dataset")
     args = get_dataset_args()
     args.num_samples = num_samples
     args.seed = seed
