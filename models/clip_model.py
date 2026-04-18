@@ -9,7 +9,7 @@ class CLIPModel(nn.Module):
         self.mnist_encoder = MNIST1DEncoder(input_dim=40, hidden_dim=128, output_dim=projection_dim)
         self.digits_encoder = DigitsEncoder(input_dim=64, hidden_dim=128, output_dim=projection_dim)
 
-        self.mnist_projection = nn.Linear(projection_dim, projection_dim)
+        self.mnist_projection = nn.Linear(projection_dim, projection_dim) #Projection head is in the clip model definition, not in the encoders
         self.digits_projection = nn.Linear(projection_dim, projection_dim)
 
     def forward(self, x_mnist, x_digits):
