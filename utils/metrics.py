@@ -25,23 +25,29 @@ def evaluate_retrival(model, digits_data, mnist1d_data, device, k):
 
     return recall_sig2img, recall_img2sig
 
-def evaluate_cka(model1, model2, digits_data, mnist1d_data, device):
-    model1.eval().to(device)
-    model2.eval().to(device)
-    n = min(len(digits_data["X_test"]), len(mnist1d_data["X_test"]))
+def evaluate_cka(model1, model2, digits_data, mnist1d_data, device, emb1= None, emb2 = None):
+    
 
-    with torch.no_grad():
+    if emb1 is not None and emb2 is not None:
+        n = min(emb1.shape[0], emb2.shape[0])
+        cka = compute_cka(emb1[:n], emb2[:n])
+    else:
+        model1.eval().to(device)
+        model2.eval().to(device)
+        n = min(len(digits_data["X_test"]), len(mnist1d_data["X_test"]))
 
-        z_sig1, z_img1 = model1(torch.from_numpy(mnist1d_data["X_test"][:n]).to(device), torch.from_numpy(digits_data["X_test"][:n]).to(device))
-        z_sig2, z_img2 = model2(torch.from_numpy(mnist1d_data["X_test"][:n]).to(device), torch.from_numpy(digits_data["X_test"][:n]).to(device))
+        with torch.no_grad():
 
-        z1 = torch.cat([z_sig1, z_img1], dim=1)
-        z2 = torch.cat([z_sig2, z_img2], dim=1)
+            z_sig1, z_img1 = model1(torch.from_numpy(mnist1d_data["X_test"][:n]).to(device), torch.from_numpy(digits_data["X_test"][:n]).to(device))
+            z_sig2, z_img2 = model2(torch.from_numpy(mnist1d_data["X_test"][:n]).to(device), torch.from_numpy(digits_data["X_test"][:n]).to(device))
 
-        cka = compute_cka(z1, z2)
-        
+            z1 = torch.cat([z_sig1, z_img1], dim=1)
+            z2 = torch.cat([z_sig2, z_img2], dim=1)
 
-    model1.train()
-    model2.train()
+            cka = compute_cka(z1, z2)
+            
+
+        model1.train()
+        model2.train()
 
     return cka

@@ -7,6 +7,7 @@ seeds = [42, 123, 999]
 force_reload = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print (f"Using device: {device}")
 
 digits_data, mnist1d_data = load_all_datasets(seed=seeds[0], force_reload=force_reload) #Same seed to ensure same test set for CKA evaluation
 
