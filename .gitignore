@@ -3,6 +3,7 @@ data/cached/
 .vscode/
 .python-version
 checkpoints/
+Docs/
 figures/
 
 # Byte-compiled / optimized / DLL files
