@@ -1,6 +1,7 @@
 from data.dataset import load_all_datasets
 from models.clip_model import CLIPModel
 from utils.metrics import evaluate_cka
+from utils.visualization import plot_tsne
 import torch
 
 seeds = [42, 123, 999]
@@ -39,3 +40,22 @@ print(f"CKA between models trained with seeds {seeds[0]} and {seeds[2]}: {cka3:.
 avg_cka = (cka1 + cka2 + cka3) / 3
 print(f"Average CKA across all pairs: {avg_cka:.4f}")
 
+
+#-------------------- t-SNE Visualization ------------------
+model = CLIPModel(projection_dim=32).to(device)
+model.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[0]}.pth", weights_only=True))
+model.eval()
+
+n = min(len(digits_data["X_test"]), len(mnist1d_data["X_test"]))
+
+with torch.no_grad():
+    z_sig, z_img = model(
+        torch.from_numpy(mnist1d_data["X_test"][:n]).to(device),
+        torch.from_numpy(digits_data["X_test"][:n]).to(device)
+    )
+
+plot_tsne(z_img, z_sig, 
+          torch.from_numpy(digits_data["y_test"][:n]).to(device),
+          torch.from_numpy(mnist1d_data["y_test"][:n]).to(device),
+          title=f"t-SNE of CLIP Embeddings (Seed {seeds[0]})",
+          save_path=f"figures/tsne_clip_seed{seeds[0]}.png")

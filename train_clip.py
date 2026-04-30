@@ -10,7 +10,6 @@ from data.dataset import load_all_datasets
 from methods.losses import info_nce_loss
 from utils.metrics import evaluate_retrival
 
-
 def train_clip(seed, epochs, steps_per_epoch, batch_size, temperature, force_reload=False):
 
     torch.manual_seed(seed)
@@ -54,7 +53,6 @@ def train_clip(seed, epochs, steps_per_epoch, batch_size, temperature, force_rel
             recall_sig2img, recall_img2sig = evaluate_retrival(model, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device, k=5)
             pbar.write(f"Epoch {epoch+1} - Recall@5 Sig2Img: {recall_sig2img:.4f}, Img2Sig: {recall_img2sig:.4f}")
         
-            
 
     recall_sig2img, recall_img2sig = evaluate_retrival(model, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device, k=5)
     torch.save(model.state_dict(), f"checkpoints/clip_seed{seed}.pth")

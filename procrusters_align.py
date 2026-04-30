@@ -3,6 +3,7 @@ from models.unimodal import UnimodalModelMnist1D, UnimodalModelDigits
 from data.dataset import load_all_datasets
 from methods.procruster import procruster_align, procruster_align_centroid
 from utils.metrics import recall_at_k, evaluate_cka
+from utils.visualization import plot_tsne
 import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -12,7 +13,7 @@ force_reload = False
 
 Modelmnist1D = UnimodalModelMnist1D().to(device)
 ModelDigits = UnimodalModelDigits().to(device)
-seeds = [42, 123, 999]
+seeds = [42]
 
 results = {}
 
@@ -46,6 +47,8 @@ for seed in seeds:
     #Compute CKA
     cka = evaluate_cka(None, None, None, None, device, emb1 = mnist1D_aligned, emb2 = embs_digits_test)
 
+    plot_tsne(embs_digits_test, embs_mnist1d_test, torch.from_numpy(digits_dataset["y_test"]).to(device), torch.from_numpy(mnist1d_dataset["y_test"]).to(device), title=f"t-SNE of Test Embeddings (Seed {seed})", save_path=f"figures/tsne_before_seed{seed}.png")
+    plot_tsne(embs_digits_test, mnist1D_aligned, torch.from_numpy(digits_dataset["y_test"]).to(device), torch.from_numpy(mnist1d_dataset["y_test"]).to(device), title=f"t-SNE of Test Embeddings After Procruster Alignment (Seed {seed})", save_path=f"figures/tsne_after_seed{seed}.png")
     results[seed] = {
         "recall_sig2img": recall_sig2img,
         "recall_img2sig": recall_img2sig,
