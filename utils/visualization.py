@@ -83,4 +83,36 @@ def plot_tsne(emb_digits, emb_mnist, y_digits, y_mnist, title, save_path=None):
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Saved to {save_path}")
 
-    plt.show()
+    #plt.show()
+
+def plot_eigenspectrum(eigenvalues_dict, title="Modality Gap Eigenspectrum", save_path=None):
+    """
+    Plot the eigenspectrum of the residual covariance matrix for multiple methods.
+    
+    Args:
+        eigenvalues_dict: dict where keys are method names and values are eigenvalue tensors
+                         e.g. {"CLIP": tensor(...), "Procrustes": tensor(...)}
+        title:           plot title
+        save_path:       if provided, saves the figure to this path
+    """
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    for method_name, eigenvalues in eigenvalues_dict.items():
+        if isinstance(eigenvalues, torch.Tensor):
+            eigenvalues = eigenvalues.detach().cpu().numpy()
+        
+        ax.plot(range(1, len(eigenvalues) + 1), eigenvalues, 
+                marker='o', markersize=4, label=method_name)
+
+    ax.set_xlabel("Eigenvalue index")
+    ax.set_ylabel("Eigenvalue magnitude")
+    ax.set_title(title)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f"Saved to {save_path}")
+
+    #plt.show()

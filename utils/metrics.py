@@ -51,3 +51,17 @@ def evaluate_cka(model1, model2, digits_data, mnist1d_data, device, emb1= None, 
         model2.train()
 
     return cka
+
+def compute_modality_gap(emb_img, emb_sign):
+    #Compute residual values 
+    residual = emb_img - emb_sign
+
+    residual_mean = torch.mean(residual, dim=0)
+    residual_cov = torch.cov(residual.T)
+    residual_eigenvalues = torch.flip(torch.linalg.eigvalsh(residual_cov), dims=[0])
+
+    mu_norm = torch.norm(residual_mean)
+    cov_trace = torch.trace(residual_cov).item()
+
+
+    return residual_mean, residual_cov, residual_eigenvalues, mu_norm, cov_trace

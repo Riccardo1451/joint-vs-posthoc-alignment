@@ -1,45 +1,38 @@
 from data.dataset import load_all_datasets
+from data.dataloader import build_paired_dataset
 from models.clip_model import CLIPModel
-from utils.metrics import evaluate_cka
-from utils.visualization import plot_tsne
+from utils.metrics import evaluate_cka, compute_modality_gap
+from utils.visualization import plot_tsne, plot_eigenspectrum
+from itertools import combinations
 import torch
+import numpy as np
+import os
+os.makedirs("figures", exist_ok=True)
 
 seeds = [42, 123, 999]
 force_reload = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print (f"Using device: {device}")
-digits_data, mnist1d_data = load_all_datasets(seed=seeds[0], force_reload=force_reload) #Same seed to ensure same test set for CKA evaluation
+print(f"Using device: {device}")
+
+# Load datasets with fixed seed to ensure same test set for all evaluations
+digits_data, mnist1d_data = load_all_datasets(seed=seeds[0], force_reload=force_reload)
+
+# Initialize models
+model1 = CLIPModel(projection_dim=32).to(device)
+model2 = CLIPModel(projection_dim=32).to(device)
 
 #-------------------- CKA Evaluation ------------------
+cka_scores = []
 
-#--------------------cka seed 42 vs 123------------------
-model1 = CLIPModel(projection_dim=32).to(device)
-model2 = CLIPModel(projection_dim=32).to(device)
-model1.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[0]}.pth"))
-model2.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[1]}.pth"))
-cka1 = evaluate_cka(model1, model2, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device)
-print(f"CKA between models trained with seeds {seeds[0]} and {seeds[1]}: {cka1:.4f}")
+for s1, s2 in combinations(seeds, 2):
+    model1.load_state_dict(torch.load(f"checkpoints/clip_seed{s1}.pth", weights_only=True))
+    model2.load_state_dict(torch.load(f"checkpoints/clip_seed{s2}.pth", weights_only=True))
+    cka = evaluate_cka(model1, model2, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device)
+    cka_scores.append(cka)
+    print(f"CKA between models trained with seeds {s1} and {s2}: {cka:.4f}")
 
-#--------------------cka seed 999 vs 123------------------
-model1 = CLIPModel(projection_dim=32).to(device)
-model2 = CLIPModel(projection_dim=32).to(device)
-model1.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[1]}.pth"))
-model2.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[2]}.pth"))
-cka2 = evaluate_cka(model1, model2, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device)
-print(f"CKA between models trained with seeds {seeds[1]} and {seeds[2]}: {cka2:.4f}")
-
-#--------------------cka seed 999 vs 42------------------
-model1 = CLIPModel(projection_dim=32).to(device)
-model2 = CLIPModel(projection_dim=32).to(device)
-model1.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[0]}.pth"))
-model2.load_state_dict(torch.load(f"checkpoints/clip_seed{seeds[2]}.pth"))
-cka3 = evaluate_cka(model1, model2, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device)
-print(f"CKA between models trained with seeds {seeds[0]} and {seeds[2]}: {cka3:.4f}")
-
-avg_cka = (cka1 + cka2 + cka3) / 3
-print(f"Average CKA across all pairs: {avg_cka:.4f}")
-
+print(f"Average CKA across all pairs: {np.mean(cka_scores):.4f} ± {np.std(cka_scores):.4f}")
 
 #-------------------- t-SNE Visualization ------------------
 model = CLIPModel(projection_dim=32).to(device)
@@ -54,8 +47,39 @@ with torch.no_grad():
         torch.from_numpy(digits_data["X_test"][:n]).to(device)
     )
 
-plot_tsne(z_img, z_sig, 
+plot_tsne(z_img, z_sig,
           torch.from_numpy(digits_data["y_test"][:n]).to(device),
           torch.from_numpy(mnist1d_data["y_test"][:n]).to(device),
           title=f"t-SNE of CLIP Embeddings (Seed {seeds[0]})",
           save_path=f"figures/tsne_clip_seed{seeds[0]}.png")
+
+#-------------------- Modality Gap Evaluation ------------------
+clip_eigenvalues_list = []
+
+for seed in seeds:
+    model = CLIPModel(projection_dim=32).to(device)
+    model.load_state_dict(torch.load(f"checkpoints/clip_seed{seed}.pth", weights_only=True))
+    model.eval()
+
+    # Build paired dataset for coupled residuals
+    align_set = build_paired_dataset(digits_data, mnist1d_data, seed=seed)
+
+    with torch.no_grad():
+        z_sig, z_img = model(
+            torch.from_numpy(align_set["X_mnist1d"]).to(device),
+            torch.from_numpy(align_set["X_digits"]).to(device)
+        )
+
+    residual_mean, residual_cov, eigenvalues, mu_norm, cov_trace = compute_modality_gap(z_img, z_sig)
+    print(f"Seed {seed} - |mu_e|: {mu_norm:.4f}, tr(Sigma_e): {cov_trace:.4f}")
+    clip_eigenvalues_list.append(eigenvalues)
+
+# Average eigenvalues across seeds
+avg_eigenvalues_clip = torch.stack(clip_eigenvalues_list).mean(dim=0)
+
+plot_eigenspectrum(
+    {"CLIP": avg_eigenvalues_clip,
+     "Procrustes (paired)": torch.load("checkpoints/eigenvalues_procrustes.pth")},
+    title="Modality Gap Eigenspectrum - CLIP",
+    save_path="figures/eigenspectrum_clip.png"
+)

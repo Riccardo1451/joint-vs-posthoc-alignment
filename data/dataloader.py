@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from sklearn.model_selection import train_test_split 
 
 def sample_batch(digits_data, mnist1d_data, K):
 
@@ -27,5 +28,36 @@ def sample_batch(digits_data, mnist1d_data, K):
 
     return torch.from_numpy(complete_batch_digits), torch.from_numpy(complete_batch_mnist1d), torch.from_numpy(label)
 
+def build_paired_dataset(digits_data, mnist1d_data, seed=42):
+    
+    paired_digits = []
+    paired_mnist1d = []
+    paired_labels = []
 
+    np.random.seed(seed)
+
+    for cls in range(10):
+        idx_digits  = np.where(digits_data["y_train"] == cls)[0]
+        idx_mnist1d = np.where(mnist1d_data["y_train"] == cls)[0]
+
+        np.random.shuffle(idx_digits)
+        np.random.shuffle(idx_mnist1d)
+
+        n_per_class = min(len(idx_digits), len(idx_mnist1d))
+
+        paired_digits.append(digits_data["X_train"][idx_digits[:n_per_class]])
+        paired_mnist1d.append(mnist1d_data["X_train"][idx_mnist1d[:n_per_class]])
+        paired_labels.append(np.full(n_per_class, cls))
+
+    paired_digits = np.concatenate(paired_digits, axis=0)
+    paired_mnist1d = np.concatenate(paired_mnist1d, axis=0)
+    paired_labels = np.concatenate(paired_labels, axis=0)
+
+    align_set = {
+        "X_digits": paired_digits,
+        "X_mnist1d": paired_mnist1d,
+        "y": paired_labels
+    }
+
+    return align_set
         
