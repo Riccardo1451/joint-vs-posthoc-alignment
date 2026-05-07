@@ -10,7 +10,7 @@ from data.dataset import load_all_datasets
 from methods.losses import info_nce_loss
 from utils.metrics import evaluate_retrival
 
-def train_clip(seed, epochs, steps_per_epoch, batch_size, temperature, force_reload=False):
+def train_clip(seed, epochs, steps_per_epoch, batch_size, hiddend_dim, projection_dim, temperature, mode = "mlp",force_reload=False):
 
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -18,7 +18,7 @@ def train_clip(seed, epochs, steps_per_epoch, batch_size, temperature, force_rel
     print(f"Using device: {device}")
 
 
-    model = CLIPModel(projection_dim=32).to(device)
+    model = CLIPModel(mode=mode, hiddend_dim=hiddend_dim, projection_dim=projection_dim).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     digits_data, mnist1d_data = load_all_datasets(seed=seed, force_reload=force_reload)
@@ -55,7 +55,7 @@ def train_clip(seed, epochs, steps_per_epoch, batch_size, temperature, force_rel
         
 
     recall_sig2img, recall_img2sig = evaluate_retrival(model, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device, k=5)
-    torch.save(model.state_dict(), f"checkpoints/clip_seed{seed}.pth")
-    print(f"Training completed and model saved in checkpoints/clip_seed{seed}.pth.")
+    torch.save(model.state_dict(), f"checkpoints/clip_{mode}_seed{seed}_hd{hiddend_dim}_pd{projection_dim}.pth")
+    print(f"Training completed and model saved in checkpoints/clip_{mode}_seed{seed}_hd{hiddend_dim}_pd{projection_dim}.pth.")
 
     return recall_sig2img, recall_img2sig

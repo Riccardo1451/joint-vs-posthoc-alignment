@@ -35,6 +35,51 @@ class MNIST1DEncoder(nn.Module):
         embedding = self.encoder(x)
         return nn.functional.normalize(embedding, p=2, dim=1)                   #L2 to normalize the output
     
+class MNIST1DEncoderCNN(nn.Module):
+    def __init__(self, input_dim: int = 40, hidden_dim: int = 128, output_dim: int = 32):
+        super(MNIST1DEncoderCNN, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv1d(1, 16, kernel_size=3, padding=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Conv1d(16, 32, kernel_size=3, padding=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(32 * input_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.unsqueeze(1)  # Add channel dimension
+        embedding = self.encoder(x)
+        return nn.functional.normalize(embedding, p=2, dim=1)                   #L2 to normalize the output
+    
+class DigitsEncoderCNN(nn.Module):
+    def __init__(self, input_dim: int = 64, hidden_dim: int = 128, output_dim: int = 32):
+        super(DigitsEncoderCNN, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv1d(1, 16, kernel_size=3, padding=1),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.Conv1d(16, 32, kernel_size=3, padding=1),
+            nn.BatchNorm1d(32),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(32 * input_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim)
+        )
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.unsqueeze(1)  # Add channel dimension
+        embedding = self.encoder(x)
+        return nn.functional.normalize(embedding, p=2, dim=1)                   #L2 to normalize the output
+    
+
 if __name__ == "__main__":
     # Quick sanity check
     batch_size = 16

@@ -18,9 +18,12 @@ print(f"Using device: {device}")
 # Load datasets with fixed seed to ensure same test set for all evaluations
 digits_data, mnist1d_data = load_all_datasets(seed=seeds[0], force_reload=force_reload)
 
+hiddend_dim = 128
+projection_dim = 32
+
 # Initialize models
-model1 = CLIPModel(projection_dim=32).to(device)
-model2 = CLIPModel(projection_dim=32).to(device)
+model1 = CLIPModel(hiddend_dim=hiddend_dim, projection_dim=projection_dim).to(device)
+model2 = CLIPModel(hiddend_dim=hiddend_dim, projection_dim=projection_dim).to(device)
 
 #-------------------- CKA Evaluation ------------------
 cka_scores = []

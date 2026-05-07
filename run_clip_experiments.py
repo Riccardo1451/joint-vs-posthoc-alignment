@@ -18,7 +18,9 @@ results = []
 
 for seed in seeds:
     print(f"Running experiment with seed {seed}...")
-    recall_sig2img, recall_img2sig = train_clip(seed=seed, epochs=epochs, steps_per_epoch=steps_per_epoch, batch_size=batch_size, temperature=temperature, force_reload=force_reload)
+    recall_sig2img, recall_img2sig = train_clip(seed=seed, epochs=epochs, steps_per_epoch=steps_per_epoch, 
+                                                batch_size=batch_size, mode ="cnn", hiddend_dim=64, projection_dim=32, 
+                                                temperature=temperature, force_reload=force_reload)
     results.append((seed, recall_sig2img, recall_img2sig))
 
 
