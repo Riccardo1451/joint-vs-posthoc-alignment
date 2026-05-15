@@ -15,3 +15,6 @@ def info_nce_loss(z_img, z_sig, temperature=0.07):
     loss = (loss_img + loss_sig) / 2
 
     return loss, loss_img.item(), loss_sig.item()
+
+def deep_coral():
+    pass

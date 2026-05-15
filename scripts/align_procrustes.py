@@ -22,6 +22,7 @@ from data.dataloader import build_paired_dataset
 from methods.procrustes import procrustes_align
 from utils.metrics import recall_at_k, evaluate_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
+from methods.coral import coral_align
 
 os.makedirs("figures", exist_ok=True)
 
@@ -61,18 +62,30 @@ for seed in seeds:
 
     mnist1d_aligned = embs_mnist1d_test @ Q.T
 
+    # --- CORAL ---
+    mnist1d_coral = coral_align(mnist1d_aligned, embs_digits_test, device=device)
+
     # --- Retrieval ---
-    recall_s2i = recall_at_k(mnist1d_aligned, y_mnist1d_test, embs_digits_test, y_digits_test, k=5)
-    recall_i2s = recall_at_k(embs_digits_test, y_digits_test, mnist1d_aligned, y_mnist1d_test, k=5)
-    print(f"Recall@5  Sig→Img: {recall_s2i:.4f}  Img→Sig: {recall_i2s:.4f}")
+    recall_s2i_procrustes = recall_at_k(mnist1d_aligned, y_mnist1d_test, embs_digits_test, y_digits_test, k=5)
+    recall_i2s_procrustes = recall_at_k(embs_digits_test, y_digits_test, mnist1d_aligned, y_mnist1d_test, k=5)
+
+    recall_s2i_coral = recall_at_k(mnist1d_coral, y_mnist1d_test, embs_digits_test, y_digits_test, k=5)
+    recall_i2s_coral = recall_at_k(embs_digits_test, y_digits_test, mnist1d_coral, y_mnist1d_test, k=5)
+
+    print(f"Recall@5 Procrustes Sig→Img: {recall_s2i_procrustes:.4f}  Img→Sig: {recall_i2s_procrustes:.4f}")
+    print(f"Recall@5 CORAL Sig→Img: {recall_s2i_coral:.4f}  Img→Sig: {recall_i2s_coral:.4f}")
 
     # --- CKA ---
     n = min(len(embs_digits_test), len(mnist1d_aligned))
-    cka = evaluate_cka(None, None, None, None, device,
+    cka_procrustes = evaluate_cka(None, None, None, None, device,
                        emb1=mnist1d_aligned[:n], emb2=embs_digits_test[:n])
-    print(f"CKA: {cka:.4f}")
+    cka_coral = evaluate_cka(None, None, None, None, device,
+                       emb1=mnist1d_coral[:n], emb2=embs_digits_test[:n])
+    print(f"CKA Procrustes: {cka_procrustes:.4f}")
+    print(f"CKA CORAL: {cka_coral:.4f}")
 
-    results[seed] = {"recall_s2i": recall_s2i, "recall_i2s": recall_i2s, "cka": cka}
+    results[seed] = {"recall_s2i": recall_s2i_procrustes, "recall_i2s": recall_i2s_procrustes, "cka_procrustes": cka_procrustes, 
+                            "cka_coral": cka_coral, "recall_s2i_coral": recall_s2i_coral, "recall_i2s_coral": recall_i2s_coral}
 
     # --- t-SNE ---
     plot_tsne(embs_digits_test, embs_mnist1d_test, y_digits_test, y_mnist1d_test,
@@ -83,23 +96,38 @@ for seed in seeds:
               title=f"Unimodal embeddings after Procrustes (Seed {seed})",
               save_path=f"figures/tsne_procrustes_after_seed{seed}.png")
 
+    plot_tsne(embs_digits_test, mnist1d_coral, y_digits_test, y_mnist1d_test,
+              title=f"Unimodal embeddings after CORAL (Seed {seed})",
+              save_path=f"figures/tsne_coral_after_seed{seed}.png")
+
     # --- Modality gap ---
     embs_mnist1d_align_rotated = embs_mnist1d_align @ Q.T
     _, _, eigenvalues, mu_norm, cov_trace = compute_modality_gap(embs_digits_align, embs_mnist1d_align_rotated)
     print(f"Modality gap  |mu|: {mu_norm:.4f}  tr(Σ): {cov_trace:.4f}")
     results[seed]["eigenvalues"] = eigenvalues
 
+    mnist1d_coral_align = embs_mnist1d_align @ Q.T
+    mnist1d_coral_align_corrected = coral_align(mnist1d_coral_align, embs_digits_align, device=device)
+    _, _, eigenvalues_coral, mu_norm_coral, cov_trace_coral = compute_modality_gap(embs_digits_align, mnist1d_coral_align_corrected)
+    print(f"Modality gap CORAL  |mu|: {mu_norm_coral:.4f}  tr(Σ): {cov_trace_coral:.4f}")
+
 # ---------------------------------------------------------------------------
 # Aggregate results
 # ---------------------------------------------------------------------------
-recalls_s2i = [results[s]["recall_s2i"] for s in seeds]
-recalls_i2s = [results[s]["recall_i2s"] for s in seeds]
-ckas        = [results[s]["cka"]        for s in seeds]
+recalls_s2i_procrustes = [results[s]["recall_s2i"] for s in seeds]
+recalls_i2s_procrustes = [results[s]["recall_i2s"] for s in seeds]
+ckas_procrustes        = [results[s]["cka_procrustes"] for s in seeds]
+recalls_s2i_coral      = [results[s]["recall_s2i_coral"] for s in seeds]
+recalls_i2s_coral      = [results[s]["recall_i2s_coral"] for s in seeds]
+ckas_coral             = [results[s]["cka_coral"]  for s in seeds]
 
 print(f"\nFinal Results (mean ± std over seeds):")
-print(f"  Recall Sig→Img : {np.mean(recalls_s2i):.4f} ± {np.std(recalls_s2i):.4f}")
-print(f"  Recall Img→Sig : {np.mean(recalls_i2s):.4f} ± {np.std(recalls_i2s):.4f}")
-print(f"  CKA            : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
+print(f"  Recall Procrustes Sig→Img : {np.mean(recalls_s2i_procrustes):.4f} ± {np.std(recalls_s2i_procrustes):.4f}")
+print(f"  Recall Procrustes Img→Sig : {np.mean(recalls_i2s_procrustes):.4f} ± {np.std(recalls_i2s_procrustes):.4f}")
+print(f"  CKA Procrustes : {np.mean(ckas_procrustes):.4f} ± {np.std(ckas_procrustes):.4f}")
+print(f"  Recall CORAL Sig→Img : {np.mean(recalls_s2i_coral):.4f} ± {np.std(recalls_s2i_coral):.4f}")
+print(f"  Recall CORAL Img→Sig : {np.mean(recalls_i2s_coral):.4f} ± {np.std(recalls_i2s_coral):.4f}")
+print(f"  CKA CORAL      : {np.mean(ckas_coral):.4f} ± {np.std(ckas_coral):.4f}")
 
 avg_eigenvalues = torch.stack([results[s]["eigenvalues"] for s in seeds]).mean(dim=0)
 torch.save(avg_eigenvalues, "checkpoints/eigenvalues_procrustes.pth")
