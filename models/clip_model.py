@@ -3,15 +3,15 @@ import torch.nn as nn
 from models.encoders import MNIST1DEncoder, DigitsEncoder, MNIST1DEncoderCNN, DigitsEncoderCNN
 
 class CLIPModel(nn.Module):
-    def __init__(self, mode = "mlp" ,hiddend_dim = 128,projection_dim = 32):
+    def __init__(self, mode = "mlp", hidden_dim = 128, projection_dim = 32):
         super(CLIPModel, self).__init__()
 
         if mode == "cnn":
-            self.mnist_encoder = MNIST1DEncoderCNN(input_dim=40, hidden_dim=hiddend_dim, output_dim=projection_dim)
-            self.digits_encoder = DigitsEncoderCNN(input_dim=64, hidden_dim=hiddend_dim, output_dim=projection_dim)
+            self.mnist_encoder = MNIST1DEncoderCNN(input_dim=40, hidden_dim=hidden_dim, output_dim=projection_dim)
+            self.digits_encoder = DigitsEncoderCNN(input_dim=64, hidden_dim=hidden_dim, output_dim=projection_dim)
         if mode == "mlp":
-            self.mnist_encoder = MNIST1DEncoder(input_dim=40, hidden_dim=hiddend_dim, output_dim=projection_dim)
-            self.digits_encoder = DigitsEncoder(input_dim=64, hidden_dim=hiddend_dim, output_dim=projection_dim)
+            self.mnist_encoder = MNIST1DEncoder(input_dim=40, hidden_dim=hidden_dim, output_dim=projection_dim)
+            self.digits_encoder = DigitsEncoder(input_dim=64, hidden_dim=hidden_dim, output_dim=projection_dim)
 
         self.mnist_projection = nn.Linear(projection_dim, projection_dim) #Projection head is in the clip model definition, not in the encoders
         self.digits_projection = nn.Linear(projection_dim, projection_dim)
