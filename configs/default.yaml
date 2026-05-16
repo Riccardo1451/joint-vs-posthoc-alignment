@@ -1,0 +1,35 @@
+# Default hyperparameters for joint-vs-posthoc-alignment experiments
+
+general:
+  seeds: [42, 123, 999]
+  force_reload: false          # set to true to regenerate cached datasets
+
+# ---------------------------------------------------------------------------
+# Joint alignment (CLIP training)
+# ---------------------------------------------------------------------------
+clip:
+  mode: "mlp"                  # encoder type: "mlp" or "cnn"
+  hidden_dim: 128              # encoder hidden layer size
+  projection_dim: 32           # output embedding dimension
+  epochs: 200
+  steps_per_epoch: 50
+  batch_size: 100              # total batch size (= 10 classes × K samples)
+  learning_rate: 1.0e-4
+  temperature: 0.1             # InfoNCE softmax temperature
+  lambda_coral: 0.1            # weight for Deep CORAL loss (set to 0 to disable)
+
+# ---------------------------------------------------------------------------
+# Unimodal classifier training (pre-step for Procrustes)
+# ---------------------------------------------------------------------------
+unimodal:
+  hidden_dim: 128
+  embedding_dim: 32
+  epochs: 300
+  batch_size: 64
+  learning_rate: 1.0e-4
+
+# ---------------------------------------------------------------------------
+# Evaluation
+# ---------------------------------------------------------------------------
+evaluation:
+  recall_k: 5                  # k for Recall@k retrieval metric
