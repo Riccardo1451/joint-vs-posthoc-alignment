@@ -61,3 +61,19 @@ def build_paired_dataset(digits_data, mnist1d_data, seed=42):
 
     return align_set
         
+def apply_label_flip(y_train, flip_rate=0.1, seed=42):
+    n_flip = int(len(y_train) * flip_rate)
+    # Choose n_flip random indices to flip
+    np.random.seed(seed)
+    flip_indices = np.random.choice(len(y_train), n_flip, replace=False)
+
+    classes = np.unique(y_train)
+
+    flipped_labels = y_train.copy()
+
+    # Flip the labels with a random different class
+    for i in flip_indices:
+        new_label = np.random.choice([c for c in classes if c!= y_train[i]])
+        flipped_labels[i] = new_label
+        
+    return flipped_labels

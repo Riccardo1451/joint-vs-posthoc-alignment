@@ -17,7 +17,7 @@ import tqdm
 from models.clip_model import CLIPModel
 from data.dataloader import sample_batch
 from data.dataset import load_all_datasets
-from methods.losses import info_nce_loss
+from methods.losses import info_nce_loss, deep_coral_loss
 from utils.metrics import evaluate_retrieval
 
 os.makedirs("checkpoints", exist_ok=True)
@@ -33,6 +33,10 @@ def train_clip(
     temperature: float,
     mode: str = "mlp",
     force_reload: bool = False,
+    y_train_digits: np.ndarray = None,
+    y_train_mnist1d: np.ndarray = None,
+    lambda_coral: float = 0.1,
+    flip_rate: float = 0.0
 ):
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -43,6 +47,11 @@ def train_clip(
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     digits_data, mnist1d_data = load_all_datasets(seed=seed, force_reload=force_reload)
+    if y_train_digits is not None:
+        digits_data["y_train"] = y_train_digits
+    if y_train_mnist1d is not None:
+        mnist1d_data["y_train"] = y_train_mnist1d 
+
     pbar = tqdm.tqdm(range(epochs), desc=f"Training - Seed {seed}")
 
     for epoch in pbar:
@@ -59,7 +68,7 @@ def train_clip(
             batch_mnist1d = batch_mnist1d.to(device)
 
             z_sig, z_img = model(batch_mnist1d, batch_digits)
-            loss, _, _ = info_nce_loss(z_img, z_sig, temperature=temperature)
+            loss = info_nce_loss(z_img, z_sig, temperature=temperature) + lambda_coral * deep_coral_loss(z_img, z_sig)
             loss.backward()
             epoch_loss += loss.item()
             optimizer.step()
@@ -79,7 +88,7 @@ def train_clip(
         model, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device, k=5
     )
 
-    ckpt_path = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
+    ckpt_path = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_flipr{flip_rate}.pth"
     torch.save(model.state_dict(), ckpt_path)
     print(f"Model saved to {ckpt_path}")
 

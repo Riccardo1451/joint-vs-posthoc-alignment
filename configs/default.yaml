@@ -16,6 +16,7 @@ clip:
   batch_size: 100              # total batch size (= 10 classes × K samples)
   learning_rate: 1.0e-4
   temperature: 0.1             # InfoNCE softmax temperature
+  lambda_coral: 0.1            # weight for Deep CORAL loss (set to 0 to disable)
 
 # ---------------------------------------------------------------------------
 # Unimodal classifier training (pre-step for Procrustes)
