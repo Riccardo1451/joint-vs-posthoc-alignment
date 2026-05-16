@@ -5,7 +5,7 @@ The DeepCORAL term penalises the difference in covariance between the two
 modality embeddings, encouraging a more uniform modality gap.
 
 Trains 3 seeds and saves:
-    checkpoints/clip_cnn_seed{S}_hd64_pd32_CORAL.pth
+    checkpoints/clip_deepcoral/cnn_seed{S}_hd64_pd32.pth
 
 Run from the project root:
     python scripts/train_clip_deepcoral.py
@@ -25,7 +25,7 @@ from data.dataset import load_all_datasets
 from methods.losses import info_nce_loss, deep_coral_loss
 from utils.metrics import evaluate_retrieval
 
-os.makedirs("checkpoints", exist_ok=True)
+os.makedirs("checkpoints/clip_deepcoral", exist_ok=True)
 
 # ---------------------------------------------------------------------------
 seeds          = [42, 123, 999]
@@ -76,7 +76,7 @@ for seed in seeds:
             pbar.write(f"Epoch {epoch+1}  Recall@5  Sig→Img: {r_s2i:.4f}  Img→Sig: {r_i2s:.4f}")
 
     r_s2i, r_i2s = evaluate_retrieval(model, digits_data, mnist1d_data, device, k=5)
-    ckpt = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_CORAL.pth"
+    ckpt = f"checkpoints/clip_deepcoral/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
     torch.save(model.state_dict(), ckpt)
     print(f"Saved → {ckpt}")
     results.append((seed, r_s2i, r_i2s))

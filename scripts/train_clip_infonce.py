@@ -2,7 +2,7 @@
 Train CLIP with InfoNCE loss only (baseline joint alignment).
 
 Trains 3 seeds and saves:
-    checkpoints/clip_cnn_seed{S}_hd64_pd32.pth
+    checkpoints/clip_infonce/cnn_seed{S}_hd64_pd32.pth
 
 Run from the project root:
     python scripts/train_clip_infonce.py
@@ -22,7 +22,7 @@ from data.dataset import load_all_datasets
 from methods.losses import info_nce_loss
 from utils.metrics import evaluate_retrieval
 
-os.makedirs("checkpoints", exist_ok=True)
+os.makedirs("checkpoints/clip_infonce", exist_ok=True)
 
 # ---------------------------------------------------------------------------
 seeds          = [42, 123, 999]
@@ -70,7 +70,7 @@ for seed in seeds:
             pbar.write(f"Epoch {epoch+1}  Recall@5  Sig→Img: {r_s2i:.4f}  Img→Sig: {r_i2s:.4f}")
 
     r_s2i, r_i2s = evaluate_retrieval(model, digits_data, mnist1d_data, device, k=5)
-    ckpt = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
+    ckpt = f"checkpoints/clip_infonce/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
     torch.save(model.state_dict(), ckpt)
     print(f"Saved → {ckpt}")
     results.append((seed, r_s2i, r_i2s))

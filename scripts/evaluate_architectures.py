@@ -43,10 +43,10 @@ model_mlp = CLIPModel(mode="mlp", hidden_dim=hidden_dim_mlp, projection_dim=proj
 cka_scores = []
 for seed in seeds:
     model_cnn.load_state_dict(torch.load(
-        f"checkpoints/clip_cnn_seed{seed}_hd{hidden_dim_cnn}_pd{projection_dim}.pth",
+        f"checkpoints/clip_infonce/cnn_seed{seed}_hd{hidden_dim_cnn}_pd{projection_dim}.pth",
         weights_only=True))
     model_mlp.load_state_dict(torch.load(
-        f"checkpoints/clip_mlp_seed{seed}_hd{hidden_dim_mlp}_pd{projection_dim}.pth",
+        f"checkpoints/clip_infonce/mlp_seed{seed}_hd{hidden_dim_mlp}_pd{projection_dim}.pth",
         weights_only=True))
 
     cka = evaluate_cka(model_cnn, model_mlp,

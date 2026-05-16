@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from data.dataset import load_digits_dataset, load_mnist1d_dataset
 from models.unimodal import UnimodalModelDigits, UnimodalModelMnist1D
 
-os.makedirs("checkpoints", exist_ok=True)
+os.makedirs("checkpoints/unimodal", exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Hyperparameters
@@ -73,7 +73,7 @@ def train_digits():
                     acc = (predicted == y_test).float().mean().item()
                 pbar.write(f"Epoch {epoch+1}/{NUM_EPOCHS}  Test Acc: {acc:.4f}")
 
-        ckpt = f"checkpoints/digits_unimodal_seed{seed}.pth"
+        ckpt = f"checkpoints/unimodal/digits_seed{seed}.pth"
         torch.save(model.state_dict(), ckpt)
         print(f"Saved → {ckpt}")
 
@@ -113,7 +113,7 @@ def train_mnist1d():
                     acc = (predicted == y_test).float().mean().item()
                 pbar.write(f"Epoch {epoch+1}/{NUM_EPOCHS}  Test Acc: {acc:.4f}")
 
-        ckpt = f"checkpoints/mnist1d_unimodal_seed{seed}.pth"
+        ckpt = f"checkpoints/unimodal/mnist1d_seed{seed}.pth"
         torch.save(model.state_dict(), ckpt)
         print(f"Saved → {ckpt}")
 

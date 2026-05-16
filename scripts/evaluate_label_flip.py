@@ -10,9 +10,9 @@ Set use_coral=True to evaluate the DeepCORAL variants (_flipr{R}_CORAL.pth),
 or False for the InfoNCE-only variants (_flipr{R}.pth).
 
 Requires:
-  - checkpoints/clip_cnn_seed{S}_hd64_pd32.pth              (baseline, flip_rate=0)
-  - checkpoints/clip_cnn_seed{S}_hd64_pd32_flipr{R}.pth     (train_clip_labelflip.py, lambda_coral=0)
-  - checkpoints/clip_cnn_seed{S}_hd64_pd32_flipr{R}_CORAL.pth  (train_clip_labelflip.py, lambda_coral>0)
+  - checkpoints/clip_infonce/cnn_seed{S}_hd64_pd32.pth                      (baseline, flip_rate=0)
+  - checkpoints/clip_labelflip/infonce/cnn_seed{S}_hd64_pd32_flipr{R}.pth  (lambda_coral=0)
+  - checkpoints/clip_labelflip/deepcoral/cnn_seed{S}_hd64_pd32_flipr{R}.pth (lambda_coral>0)
 
 Run from the project root:
     python scripts/evaluate_label_flip.py
@@ -50,11 +50,10 @@ model      = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mod
 model_pair = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mode=mode).to(device)
 
 def ckpt(seed, flip_rate):
-    base = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}"
     if flip_rate == 0.0:
-        return base + ".pth"
-    suffix = f"_flipr{flip_rate}" + ("_CORAL" if use_coral else "")
-    return base + suffix + ".pth"
+        return f"checkpoints/clip_infonce/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
+    subfolder = "deepcoral" if use_coral else "infonce"
+    return f"checkpoints/clip_labelflip/{subfolder}/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_flipr{flip_rate}.pth"
 
 # ---------------------------------------------------------------------------
 print(f"\n{'flip_rate':>10}  {'Recall S→I':>18}  {'Recall I→S':>18}  {'CKA':>15}")

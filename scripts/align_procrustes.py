@@ -8,7 +8,7 @@ test set and plots t-SNE before/after rotation.
 For the Procrustes + CORAL variant see align_procrustes_coral.py.
 
 Requires:
-  - checkpoints/{mnist1d,digits}_unimodal_seed{S}.pth  (train_unimodal.py)
+  - checkpoints/unimodal/{mnist1d,digits}_seed{S}.pth  (train_unimodal.py)
 
 Run from the project root:
     python scripts/align_procrustes.py
@@ -47,8 +47,8 @@ for seed in seeds:
     digits_dataset, mnist1d_dataset = load_all_datasets(force_reload=force_reload, seed=seed)
     align_set = build_paired_dataset(digits_dataset, mnist1d_dataset, seed=seed)
 
-    model_mnist1d.load_state_dict(torch.load(f"checkpoints/mnist1d_unimodal_seed{seed}.pth", weights_only=True))
-    model_digits.load_state_dict(torch.load(f"checkpoints/digits_unimodal_seed{seed}.pth", weights_only=True))
+    model_mnist1d.load_state_dict(torch.load(f"checkpoints/unimodal/mnist1d_seed{seed}.pth", weights_only=True))
+    model_digits.load_state_dict(torch.load(f"checkpoints/unimodal/digits_seed{seed}.pth", weights_only=True))
     model_mnist1d.eval()
     model_digits.eval()
 
@@ -109,7 +109,8 @@ print(f"Recall@5  Img→Sig : {np.mean(i2s):.4f} ± {np.std(i2s):.4f}")
 print(f"CKA               : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
 
 avg_eigenvalues = torch.stack([results[s]["eigenvalues"] for s in seeds]).mean(dim=0)
-torch.save(avg_eigenvalues, "checkpoints/eigenvalues_procrustes.pth")
+os.makedirs("checkpoints/analysis", exist_ok=True)
+torch.save(avg_eigenvalues, "checkpoints/analysis/eigenvalues_procrustes.pth")
 
 plot_eigenspectrum(
     {"Procrustes (paired)": avg_eigenvalues},

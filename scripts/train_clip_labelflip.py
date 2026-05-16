@@ -28,7 +28,8 @@ from data.dataset import load_all_datasets
 from methods.losses import info_nce_loss, deep_coral_loss
 from utils.metrics import evaluate_retrieval
 
-os.makedirs("checkpoints", exist_ok=True)
+os.makedirs("checkpoints/clip_labelflip/infonce", exist_ok=True)
+os.makedirs("checkpoints/clip_labelflip/deepcoral", exist_ok=True)
 
 # ---------------------------------------------------------------------------
 seeds           = [42, 123, 999]
@@ -40,7 +41,7 @@ temperature     = 0.1
 hidden_dim      = 64
 projection_dim  = 32
 mode            = "cnn"
-lambda_coral    = 0.0   # set > 0 to add DeepCORAL term (e.g. 0.1)
+lambda_coral    = 0.5   # set > 0 to add DeepCORAL term (e.g. 0.1)
 force_reload    = False
 # ---------------------------------------------------------------------------
 
@@ -86,8 +87,8 @@ for seed in seeds:
 
         r_s2i, r_i2s = evaluate_retrieval(model, digits_data, mnist1d_data, device, k=5)
 
-        base = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_flipr{flip_rate}"
-        ckpt = base + ("_CORAL.pth" if lambda_coral > 0 else ".pth")
+        subfolder = "deepcoral" if lambda_coral > 0 else "infonce"
+        ckpt = f"checkpoints/clip_labelflip/{subfolder}/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_flipr{flip_rate}.pth"
         torch.save(model.state_dict(), ckpt)
         print(f"Saved → {ckpt}")
         results.append((seed, flip_rate, r_s2i, r_i2s))

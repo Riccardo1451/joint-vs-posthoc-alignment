@@ -7,8 +7,8 @@ Computes:
   - Modality gap eigenspectrum vs Procrustes baseline
 
 Requires:
-  - checkpoints/clip_cnn_seed{42,123,999}_hd64_pd32.pth  (train_clip_infonce.py)
-  - checkpoints/eigenvalues_procrustes.pth               (align_procrustes.py)
+  - checkpoints/clip_infonce/cnn_seed{42,123,999}_hd64_pd32.pth  (train_clip_infonce.py)
+  - checkpoints/analysis/eigenvalues_procrustes.pth              (align_procrustes.py)
 
 Run from the project root:
     python scripts/evaluate_clip_infonce.py
@@ -46,7 +46,7 @@ model1 = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mode=mo
 model2 = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mode=mode).to(device)
 
 def ckpt(seed):
-    return f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
+    return f"checkpoints/clip_infonce/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
 
 # ---------------------------------------------------------------------------
 # CKA across seed pairs
@@ -102,7 +102,7 @@ avg_eigenvalues = torch.stack(eigenvalues_list).mean(dim=0)
 plot_eigenspectrum(
     {
         "CLIP InfoNCE": avg_eigenvalues,
-        "Procrustes (paired)": torch.load("checkpoints/eigenvalues_procrustes.pth"),
+        "Procrustes (paired)": torch.load("checkpoints/analysis/eigenvalues_procrustes.pth"),
     },
     title="Modality Gap Eigenspectrum - CLIP InfoNCE vs Procrustes",
     save_path="figures/eigenspectrum_clip_infonce.png",

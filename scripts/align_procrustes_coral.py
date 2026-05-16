@@ -47,8 +47,8 @@ for seed in seeds:
     digits_dataset, mnist1d_dataset = load_all_datasets(force_reload=force_reload, seed=seed)
     align_set = build_paired_dataset(digits_dataset, mnist1d_dataset, seed=seed)
 
-    model_mnist1d.load_state_dict(torch.load(f"checkpoints/mnist1d_unimodal_seed{seed}.pth", weights_only=True))
-    model_digits.load_state_dict(torch.load(f"checkpoints/digits_unimodal_seed{seed}.pth", weights_only=True))
+    model_mnist1d.load_state_dict(torch.load(f"checkpoints/unimodal/mnist1d_seed{seed}.pth", weights_only=True))
+    model_digits.load_state_dict(torch.load(f"checkpoints/unimodal/digits_seed{seed}.pth", weights_only=True))
     model_mnist1d.eval()
     model_digits.eval()
 
