@@ -1,17 +1,16 @@
 """
-Post-hoc alignment with Procrustes analysis only.
+Post-hoc alignment: Procrustes rotation followed by CORAL distribution matching.
 
-Loads pre-trained unimodal models, computes the optimal rotation Q on a
-paired alignment set, then evaluates retrieval (Recall@5) and CKA on the
-test set and plots t-SNE before/after rotation.
-
-For the Procrustes + CORAL variant see align_procrustes_coral.py.
-
-Requires:
-  - checkpoints/{mnist1d,digits}_unimodal_seed{S}.pth  (train_unimodal.py)
+Pipeline:
+  1. Load pre-trained unimodal classifiers (train with train_unimodal.py first)
+  2. Compute Procrustes rotation Q on the paired alignment set
+  3. Apply Q to test embeddings → Procrustes-aligned space
+  4. Apply CORAL to match the covariance of the rotated signal embeddings
+     to the image embeddings → Procrustes + CORAL aligned space
+  5. Evaluate retrieval (Recall@5) and CKA, plot t-SNE
 
 Run from the project root:
-    python scripts/align_procrustes.py
+    python scripts/align_procrustes_coral.py
 """
 
 import sys
@@ -25,6 +24,7 @@ from models.unimodal import UnimodalModelMnist1D, UnimodalModelDigits
 from data.dataset import load_all_datasets
 from data.dataloader import build_paired_dataset
 from methods.procrustes import procrustes_align
+from methods.coral import coral_align
 from utils.metrics import recall_at_k, evaluate_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
 
@@ -57,6 +57,7 @@ for seed in seeds:
         embs_mnist1d_align = model_mnist1d.get_embedding(torch.from_numpy(align_set["X_mnist1d"]).to(device))
         embs_digits_align  = model_digits.get_embedding(torch.from_numpy(align_set["X_digits"]).to(device))
 
+    # --- Step 1: Procrustes ---
     Q = procrustes_align(embs_mnist1d_align, embs_digits_align)
 
     # --- Test set embeddings ---
@@ -67,22 +68,24 @@ for seed in seeds:
     y_mnist1d_test = torch.from_numpy(mnist1d_dataset["y_test"]).to(device)
     y_digits_test  = torch.from_numpy(digits_dataset["y_test"]).to(device)
 
-    mnist1d_aligned = embs_mnist1d_test @ Q.T
+    mnist1d_procrustes = embs_mnist1d_test @ Q.T
+
+    # --- Step 2: CORAL on top of Procrustes ---
+    mnist1d_coral = coral_align(mnist1d_procrustes, embs_digits_test, device=device)
 
     # --- Retrieval ---
-    recall_s2i = recall_at_k(mnist1d_aligned, y_mnist1d_test, embs_digits_test, y_digits_test, k=5)
-    recall_i2s = recall_at_k(embs_digits_test, y_digits_test, mnist1d_aligned, y_mnist1d_test, k=5)
+    recall_s2i = recall_at_k(mnist1d_coral, y_mnist1d_test, embs_digits_test, y_digits_test, k=5)
+    recall_i2s = recall_at_k(embs_digits_test, y_digits_test, mnist1d_coral, y_mnist1d_test, k=5)
     print(f"Recall@5  Sig→Img: {recall_s2i:.4f}  Img→Sig: {recall_i2s:.4f}")
 
     # --- CKA ---
-    n = min(len(embs_digits_test), len(mnist1d_aligned))
-    cka = evaluate_cka(None, None, None, None, device,
-                       emb1=mnist1d_aligned[:n], emb2=embs_digits_test[:n])
+    n = min(len(embs_digits_test), len(mnist1d_coral))
+    cka = evaluate_cka(None, None, None, None, device, emb1=mnist1d_coral[:n], emb2=embs_digits_test[:n])
     print(f"CKA: {cka:.4f}")
 
     # --- Modality gap ---
-    embs_mnist1d_align_rotated = embs_mnist1d_align @ Q.T
-    _, _, eigenvalues, mu_norm, cov_trace = compute_modality_gap(embs_digits_align, embs_mnist1d_align_rotated)
+    embs_mnist1d_align_coral = coral_align(embs_mnist1d_align @ Q.T, embs_digits_align, device=device)
+    _, _, eigenvalues, mu_norm, cov_trace = compute_modality_gap(embs_digits_align, embs_mnist1d_align_coral)
     print(f"Modality gap  |mu|: {mu_norm:.4f}  tr(Σ): {cov_trace:.4f}")
 
     results[seed] = {
@@ -91,28 +94,22 @@ for seed in seeds:
     }
 
     # --- t-SNE ---
-    plot_tsne(embs_digits_test, embs_mnist1d_test, y_digits_test, y_mnist1d_test,
-              title=f"Unimodal embeddings before Procrustes (Seed {seed})",
-              save_path=f"figures/tsne_procrustes_before_seed{seed}.png")
-
-    plot_tsne(embs_digits_test, mnist1d_aligned, y_digits_test, y_mnist1d_test,
-              title=f"Unimodal embeddings after Procrustes (Seed {seed})",
-              save_path=f"figures/tsne_procrustes_after_seed{seed}.png")
+    plot_tsne(embs_digits_test, mnist1d_coral, y_digits_test, y_mnist1d_test,
+              title=f"Unimodal embeddings after Procrustes + CORAL (Seed {seed})",
+              save_path=f"figures/tsne_procrustes_coral_after_seed{seed}.png")
 
 # ---------------------------------------------------------------------------
 print("\n=== Final Results (mean ± std over seeds) ===")
-s2i  = [results[s]["recall_s2i"] for s in seeds]
-i2s  = [results[s]["recall_i2s"] for s in seeds]
+s2i = [results[s]["recall_s2i"] for s in seeds]
+i2s = [results[s]["recall_i2s"] for s in seeds]
 ckas = [results[s]["cka"] for s in seeds]
 print(f"Recall@5  Sig→Img : {np.mean(s2i):.4f} ± {np.std(s2i):.4f}")
 print(f"Recall@5  Img→Sig : {np.mean(i2s):.4f} ± {np.std(i2s):.4f}")
 print(f"CKA               : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
 
 avg_eigenvalues = torch.stack([results[s]["eigenvalues"] for s in seeds]).mean(dim=0)
-torch.save(avg_eigenvalues, "checkpoints/eigenvalues_procrustes.pth")
-
 plot_eigenspectrum(
-    {"Procrustes (paired)": avg_eigenvalues},
-    title="Modality Gap Eigenspectrum - Procrustes",
-    save_path="figures/eigenspectrum_procrustes.png",
+    {"Procrustes + CORAL (post-hoc)": avg_eigenvalues},
+    title="Modality Gap Eigenspectrum - Procrustes + CORAL",
+    save_path="figures/eigenspectrum_procrustes_coral.png",
 )
