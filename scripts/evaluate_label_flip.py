@@ -6,9 +6,13 @@ retrieval performance and representational convergence (CKA across seeds).
 Showing both metrics together lets you verify whether CKA degrades in
 lockstep with retrieval as label noise increases.
 
+Set use_coral=True to evaluate the DeepCORAL variants (_flipr{R}_CORAL.pth),
+or False for the InfoNCE-only variants (_flipr{R}.pth).
+
 Requires:
-  - checkpoints/clip_cnn_seed{42,123,999}_hd64_pd32.pth          (flip_rate=0, baseline)
-  - checkpoints/clip_cnn_seed{S}_hd64_pd32_flipr{R}.pth          (train_clip_labelflip.py)
+  - checkpoints/clip_cnn_seed{S}_hd64_pd32.pth              (baseline, flip_rate=0)
+  - checkpoints/clip_cnn_seed{S}_hd64_pd32_flipr{R}.pth     (train_clip_labelflip.py, lambda_coral=0)
+  - checkpoints/clip_cnn_seed{S}_hd64_pd32_flipr{R}_CORAL.pth  (train_clip_labelflip.py, lambda_coral>0)
 
 Run from the project root:
     python scripts/evaluate_label_flip.py
@@ -32,10 +36,13 @@ flip_rates     = [0.0, 0.05, 0.1, 0.2, 0.3]
 hidden_dim     = 64
 projection_dim = 32
 mode           = "cnn"
+use_coral      = False   # True → load _flipr{R}_CORAL.pth, False → load _flipr{R}.pth
 force_reload   = False
+# ---------------------------------------------------------------------------
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+print(f"Evaluating: {'InfoNCE + DeepCORAL' if use_coral else 'InfoNCE only'} variants")
 
 digits_data, mnist1d_data = load_all_datasets(seed=seeds[0], force_reload=force_reload)
 
@@ -44,11 +51,14 @@ model_pair = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mod
 
 def ckpt(seed, flip_rate):
     base = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}"
-    return base + ".pth" if flip_rate == 0.0 else base + f"_flipr{flip_rate}.pth"
+    if flip_rate == 0.0:
+        return base + ".pth"
+    suffix = f"_flipr{flip_rate}" + ("_CORAL" if use_coral else "")
+    return base + suffix + ".pth"
 
 # ---------------------------------------------------------------------------
-print(f"\n{'flip_rate':>10}  {'Recall S→I':>10}  {'Recall I→S':>10}  {'CKA':>8}")
-print("-" * 48)
+print(f"\n{'flip_rate':>10}  {'Recall S→I':>18}  {'Recall I→S':>18}  {'CKA':>15}")
+print("-" * 68)
 
 for flip_rate in flip_rates:
     recalls_s2i, recalls_i2s, cka_scores = [], [], []
@@ -65,10 +75,9 @@ for flip_rate in flip_rates:
         cka = evaluate_cka(model, model_pair, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device)
         cka_scores.append(cka)
 
-    label = f"{flip_rate:.2f}"
     print(
-        f"{label:>10}  "
-        f"{np.mean(recalls_s2i):.4f}±{np.std(recalls_s2i):.4f}  "
-        f"{np.mean(recalls_i2s):.4f}±{np.std(recalls_i2s):.4f}  "
-        f"{np.mean(cka_scores):.4f}±{np.std(cka_scores):.4f}"
+        f"{flip_rate:>10.2f}  "
+        f"{np.mean(recalls_s2i):.4f} ± {np.std(recalls_s2i):.4f}  "
+        f"{np.mean(recalls_i2s):.4f} ± {np.std(recalls_i2s):.4f}  "
+        f"{np.mean(cka_scores):.4f} ± {np.std(cka_scores):.4f}"
     )

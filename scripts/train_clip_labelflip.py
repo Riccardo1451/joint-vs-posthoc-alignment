@@ -1,12 +1,14 @@
 """
-Train CLIP with InfoNCE loss on corrupted labels (label flip robustness test).
+Train CLIP on corrupted labels (label flip robustness test).
+
+Loss choice is controlled by lambda_coral:
+  - lambda_coral = 0  →  InfoNCE only           → clip_cnn_seed{S}_hd64_pd32_flipr{R}.pth
+  - lambda_coral > 0  →  InfoNCE + DeepCORAL    → clip_cnn_seed{S}_hd64_pd32_flipr{R}_CORAL.pth
 
 For each combination of seed and flip rate, a fraction of training labels is
 randomly reassigned to a different class before training.  The goal is to
-check how retrieval (and later CKA) degrades as label noise increases.
-
-Trains 3 seeds × 4 flip rates = 12 models and saves:
-    checkpoints/clip_cnn_seed{S}_hd64_pd32_flipr{R}.pth
+check how retrieval (and CKA) degrades as label noise increases, and whether
+the DeepCORAL term provides any robustness.
 
 Run from the project root:
     python scripts/train_clip_labelflip.py
@@ -23,26 +25,28 @@ import tqdm
 from models.clip_model import CLIPModel
 from data.dataloader import sample_batch, apply_label_flip
 from data.dataset import load_all_datasets
-from methods.losses import info_nce_loss
+from methods.losses import info_nce_loss, deep_coral_loss
 from utils.metrics import evaluate_retrieval
 
 os.makedirs("checkpoints", exist_ok=True)
 
 # ---------------------------------------------------------------------------
-seeds          = [42, 123, 999]
-flip_rates     = [0.05, 0.1, 0.2, 0.3]
-epochs         = 200
+seeds           = [42, 123, 999]
+flip_rates      = [0.05, 0.1, 0.2, 0.3]
+epochs          = 200
 steps_per_epoch = 50
-batch_size     = 100
-temperature    = 0.1
-hidden_dim     = 64
-projection_dim = 32
-mode           = "cnn"
-force_reload   = False
+batch_size      = 100
+temperature     = 0.1
+hidden_dim      = 64
+projection_dim  = 32
+mode            = "cnn"
+lambda_coral    = 0.0   # set > 0 to add DeepCORAL term (e.g. 0.1)
+force_reload    = False
 # ---------------------------------------------------------------------------
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+print(f"lambda_coral = {lambda_coral}  ({'InfoNCE + DeepCORAL' if lambda_coral > 0 else 'InfoNCE only'})")
 
 results = []
 
@@ -69,6 +73,8 @@ for seed in seeds:
                 batch_digits, batch_mnist1d, _ = sample_batch(digits_data, mnist1d_data=mnist1d_data, K=batch_size // 10)
                 z_sig, z_img = model(batch_mnist1d.to(device), batch_digits.to(device))
                 loss = info_nce_loss(z_img, z_sig, temperature=temperature)
+                if lambda_coral > 0:
+                    loss = loss + lambda_coral * deep_coral_loss(z_img, z_sig)
                 loss.backward()
                 optimizer.step()
                 epoch_loss += loss.item()
@@ -79,7 +85,9 @@ for seed in seeds:
                 pbar.write(f"Epoch {epoch+1}  Recall@5  Sig→Img: {r_s2i:.4f}  Img→Sig: {r_i2s:.4f}")
 
         r_s2i, r_i2s = evaluate_retrieval(model, digits_data, mnist1d_data, device, k=5)
-        ckpt = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_flipr{flip_rate}.pth"
+
+        base = f"checkpoints/clip_{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}_flipr{flip_rate}"
+        ckpt = base + ("_CORAL.pth" if lambda_coral > 0 else ".pth")
         torch.save(model.state_dict(), ckpt)
         print(f"Saved → {ckpt}")
         results.append((seed, flip_rate, r_s2i, r_i2s))
