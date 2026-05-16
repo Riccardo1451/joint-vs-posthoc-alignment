@@ -36,7 +36,7 @@ temperature    = 0.1
 hidden_dim     = 64
 projection_dim = 32
 mode           = "cnn"
-lambda_coral   = 0.1   # weight of the DeepCORAL term relative to InfoNCE
+lambda_coral   = 0.5   # weight of the DeepCORAL term relative to InfoNCE
 force_reload   = False
 # ---------------------------------------------------------------------------
 

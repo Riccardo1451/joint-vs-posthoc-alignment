@@ -28,7 +28,7 @@ from methods.procrustes import procrustes_align
 from utils.metrics import recall_at_k, evaluate_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
 
-os.makedirs("figures", exist_ok=True)
+os.makedirs("figures/procrustes", exist_ok=True)
 
 # ---------------------------------------------------------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -93,11 +93,11 @@ for seed in seeds:
     # --- t-SNE ---
     plot_tsne(embs_digits_test, embs_mnist1d_test, y_digits_test, y_mnist1d_test,
               title=f"Unimodal embeddings before Procrustes (Seed {seed})",
-              save_path=f"figures/tsne_procrustes_before_seed{seed}.png")
+              save_path=f"figures/procrustes/tsne_before_seed{seed}.png")
 
     plot_tsne(embs_digits_test, mnist1d_aligned, y_digits_test, y_mnist1d_test,
               title=f"Unimodal embeddings after Procrustes (Seed {seed})",
-              save_path=f"figures/tsne_procrustes_after_seed{seed}.png")
+              save_path=f"figures/procrustes/tsne_after_seed{seed}.png")
 
 # ---------------------------------------------------------------------------
 print("\n=== Final Results (mean ± std over seeds) ===")
@@ -115,5 +115,5 @@ torch.save(avg_eigenvalues, "checkpoints/analysis/eigenvalues_procrustes.pth")
 plot_eigenspectrum(
     {"Procrustes (paired)": avg_eigenvalues},
     title="Modality Gap Eigenspectrum - Procrustes",
-    save_path="figures/eigenspectrum_procrustes.png",
+    save_path="figures/procrustes/eigenspectrum.png",
 )

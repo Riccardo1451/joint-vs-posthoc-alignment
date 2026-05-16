@@ -28,7 +28,7 @@ from models.clip_model import CLIPModel
 from utils.metrics import evaluate_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
 
-os.makedirs("figures", exist_ok=True)
+os.makedirs("figures/clip_infonce", exist_ok=True)
 
 # ---------------------------------------------------------------------------
 seeds          = [42, 123, 999]
@@ -77,7 +77,7 @@ plot_tsne(z_img, z_sig,
           torch.from_numpy(digits_data["y_test"][:n]).to(device),
           torch.from_numpy(mnist1d_data["y_test"][:n]).to(device),
           title=f"t-SNE CLIP InfoNCE (Seed {seeds[0]})",
-          save_path=f"figures/tsne_clip_infonce_seed{seeds[0]}.png")
+          save_path=f"figures/clip_infonce/tsne_seed{seeds[0]}.png")
 
 # ---------------------------------------------------------------------------
 # Modality gap eigenspectrum vs Procrustes
@@ -105,5 +105,5 @@ plot_eigenspectrum(
         "Procrustes (paired)": torch.load("checkpoints/analysis/eigenvalues_procrustes.pth"),
     },
     title="Modality Gap Eigenspectrum - CLIP InfoNCE vs Procrustes",
-    save_path="figures/eigenspectrum_clip_infonce.png",
+    save_path="figures/clip_infonce/eigenspectrum.png",
 )

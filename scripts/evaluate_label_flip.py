@@ -36,7 +36,7 @@ flip_rates     = [0.0, 0.05, 0.1, 0.2, 0.3]
 hidden_dim     = 64
 projection_dim = 32
 mode           = "cnn"
-use_coral      = False   # True → load _flipr{R}_CORAL.pth, False → load _flipr{R}.pth
+use_coral      = True   # True → load _flipr{R}_CORAL.pth, False → load _flipr{R}.pth
 force_reload   = False
 # ---------------------------------------------------------------------------
 
