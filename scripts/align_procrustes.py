@@ -58,6 +58,9 @@ for seed in seeds:
         embs_digits_align  = model_digits.get_embedding(torch.from_numpy(align_set["X_digits"]).to(device))
 
     Q = procrustes_align(embs_mnist1d_align, embs_digits_align)
+    
+    procrustes_error = torch.norm(embs_digits_align - embs_mnist1d_align @ Q.T, p='fro').item()
+    print(f"Procrustes error: {procrustes_error:.4f}")
 
     # --- Test set embeddings ---
     with torch.no_grad():
