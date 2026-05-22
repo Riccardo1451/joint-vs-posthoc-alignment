@@ -1,0 +1,42 @@
+# Hyperparameters for joint-vs-posthoc-alignment experiments
+
+general:
+  seeds: [42, 123, 999]
+  force_reload: false
+
+# ---------------------------------------------------------------------------
+# Joint alignment — CLIP training
+# ---------------------------------------------------------------------------
+clip:
+  mode: "cnn"                  # encoder type: "mlp" or "cnn"
+  hidden_dim: 64               # encoder hidden layer size  (mlp uses 128)
+  projection_dim: 32           # output embedding dimension
+  epochs: 200
+  steps_per_epoch: 50
+  batch_size: 100              # total batch size (= 10 classes × K samples)
+  learning_rate: 1.0e-4
+  temperature: 0.1             # InfoNCE softmax temperature
+
+# DeepCORAL variant (train_clip_deepcoral.py)
+deep_coral:
+  lambda_coral: 0.1            # weight of DeepCORAL term relative to InfoNCE
+
+# Label flip variant (train_clip_labelflip.py)
+label_flip:
+  flip_rates: [0.05, 0.1, 0.2, 0.3]
+
+# ---------------------------------------------------------------------------
+# Unimodal classifiers (pre-step for Procrustes, train_unimodal.py)
+# ---------------------------------------------------------------------------
+unimodal:
+  hidden_dim: 128
+  embedding_dim: 32
+  epochs: 300
+  batch_size: 64
+  learning_rate: 1.0e-4
+
+# ---------------------------------------------------------------------------
+# Evaluation
+# ---------------------------------------------------------------------------
+evaluation:
+  recall_k: 5

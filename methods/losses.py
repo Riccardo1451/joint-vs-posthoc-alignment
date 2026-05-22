@@ -14,4 +14,17 @@ def info_nce_loss(z_img, z_sig, temperature=0.07):
 
     loss = (loss_img + loss_sig) / 2
 
-    return loss, loss_img.item(), loss_sig.item()
+    return loss
+
+def deep_coral_loss(embs_img, embs_sig):
+    # Covariance matrices
+    cov_img = (embs_img - embs_img.mean(dim = 0)).T @ (embs_img - embs_img.mean(dim = 0)) / (embs_img.size(0) - 1)
+    cov_sig = (embs_sig - embs_sig.mean(dim = 0)).T @ (embs_sig - embs_sig.mean(dim = 0)) / (embs_sig.size(0) - 1)
+
+    # Frobenius norm of the difference squared
+    loss = torch.norm(cov_img - cov_sig, p='fro') ** 2
+
+    # Scale the loss by the feature dimension
+    loss = loss / (4 * embs_img.size(1) ** 2)
+
+    return loss
