@@ -61,6 +61,38 @@ def build_paired_dataset(digits_data, mnist1d_data, seed=42):
 
     return align_set
         
+def build_paired_test(digits_data, mnist1d_data, seed=42):
+    """
+    Build a class-paired test set: for every class 0-9, shuffles the test
+    samples of each modality with a fixed seed and takes min(n_digits, n_mnist1d)
+    samples, so that row i of X_digits and row i of X_mnist1d share the same label.
+    """
+    paired_digits = []
+    paired_mnist1d = []
+    paired_labels = []
+
+    rng = np.random.default_rng(seed)
+
+    for cls in range(10):
+        idx_digits  = np.where(digits_data["y_test"] == cls)[0]
+        idx_mnist1d = np.where(mnist1d_data["y_test"] == cls)[0]
+
+        rng.shuffle(idx_digits)
+        rng.shuffle(idx_mnist1d)
+
+        n_per_class = min(len(idx_digits), len(idx_mnist1d))
+
+        paired_digits.append(digits_data["X_test"][idx_digits[:n_per_class]])
+        paired_mnist1d.append(mnist1d_data["X_test"][idx_mnist1d[:n_per_class]])
+        paired_labels.append(np.full(n_per_class, cls))
+
+    return {
+        "X_digits":  np.concatenate(paired_digits,  axis=0),
+        "X_mnist1d": np.concatenate(paired_mnist1d, axis=0),
+        "y":         np.concatenate(paired_labels,  axis=0),
+    }
+
+
 def apply_label_flip(y_train, flip_rate=0.1, seed=42):
     n_flip = int(len(y_train) * flip_rate)
     # Choose n_flip random indices to flip

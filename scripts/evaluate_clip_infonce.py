@@ -23,9 +23,9 @@ import numpy as np
 from itertools import combinations
 
 from data.dataset import load_all_datasets
-from data.dataloader import build_paired_dataset
+from data.dataloader import build_paired_dataset, build_paired_test
 from models.clip_model import CLIPModel
-from utils.metrics import evaluate_cka, compute_modality_gap
+from utils.metrics import evaluate_cka, compute_crossmodal_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
 
 os.makedirs("figures/clip_infonce", exist_ok=True)
@@ -49,9 +49,9 @@ def ckpt(seed):
     return f"checkpoints/clip_infonce/{mode}_seed{seed}_hd{hidden_dim}_pd{projection_dim}.pth"
 
 # ---------------------------------------------------------------------------
-# CKA across seed pairs
+# CKA inter-run (across seed pairs)
 # ---------------------------------------------------------------------------
-print("\n--- CKA across seeds ---")
+print("\n=== CKA Inter-Run (stabilità tra seed) ===")
 cka_scores = []
 for s1, s2 in combinations(seeds, 2):
     model1.load_state_dict(torch.load(ckpt(s1), weights_only=True))
@@ -59,7 +59,27 @@ for s1, s2 in combinations(seeds, 2):
     cka = evaluate_cka(model1, model2, digits_data=digits_data, mnist1d_data=mnist1d_data, device=device)
     cka_scores.append(cka)
     print(f"CKA (seed {s1} vs {s2}): {cka:.4f}")
-print(f"Average CKA: {np.mean(cka_scores):.4f} ± {np.std(cka_scores):.4f}")
+print(f"Average CKA Inter-Run: {np.mean(cka_scores):.4f} ± {np.std(cka_scores):.4f}")
+
+# ---------------------------------------------------------------------------
+# CKA cross-modal (per seed, su test set paired per classe)
+# ---------------------------------------------------------------------------
+print("\n=== CKA Cross-Modal (geometria img vs sig) ===")
+paired_test = build_paired_test(digits_data, mnist1d_data, seed=42)
+cka_crossmodal_scores = []
+for seed in seeds:
+    m = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mode=mode).to(device)
+    m.load_state_dict(torch.load(ckpt(seed), weights_only=True))
+    m.eval()
+    with torch.no_grad():
+        z_sig, z_img = m(
+            torch.from_numpy(paired_test["X_mnist1d"]).to(device),
+            torch.from_numpy(paired_test["X_digits"]).to(device),
+        )
+    cka_cm = compute_crossmodal_cka(z_img, z_sig)
+    cka_crossmodal_scores.append(cka_cm)
+    print(f"CKA Cross-Modal (seed {seed}): {cka_cm:.4f}")
+print(f"Average CKA Cross-Modal: {np.mean(cka_crossmodal_scores):.4f} ± {np.std(cka_crossmodal_scores):.4f}")
 
 # ---------------------------------------------------------------------------
 # t-SNE (seed 42)

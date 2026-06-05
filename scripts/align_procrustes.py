@@ -23,9 +23,9 @@ import numpy as np
 
 from models.unimodal import UnimodalModelMnist1D, UnimodalModelDigits
 from data.dataset import load_all_datasets
-from data.dataloader import build_paired_dataset
+from data.dataloader import build_paired_dataset, build_paired_test
 from methods.procrustes import procrustes_align
-from utils.metrics import recall_at_k, evaluate_cka, compute_modality_gap
+from utils.metrics import recall_at_k, compute_crossmodal_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
 
 os.makedirs("figures/procrustes", exist_ok=True)
@@ -77,11 +77,16 @@ for seed in seeds:
     recall_i2s = recall_at_k(embs_digits_test, y_digits_test, mnist1d_aligned, y_mnist1d_test, k=5)
     print(f"Recall@5  Sig→Img: {recall_s2i:.4f}  Img→Sig: {recall_i2s:.4f}")
 
-    # --- CKA ---
-    n = min(len(embs_digits_test), len(mnist1d_aligned))
-    cka = evaluate_cka(None, None, None, None, device,
-                       emb1=mnist1d_aligned[:n], emb2=embs_digits_test[:n])
-    print(f"CKA: {cka:.4f}")
+    # --- CKA Cross-Modal (paired test set) ---
+    paired_test = build_paired_test(digits_dataset, mnist1d_dataset, seed=42)
+    with torch.no_grad():
+        embs_digits_paired  = model_digits.get_embedding(
+            torch.from_numpy(paired_test["X_digits"]).to(device))
+        embs_mnist1d_paired = model_mnist1d.get_embedding(
+            torch.from_numpy(paired_test["X_mnist1d"]).to(device))
+    embs_mnist1d_aligned_paired = embs_mnist1d_paired @ Q.T
+    cka = compute_crossmodal_cka(embs_digits_paired, embs_mnist1d_aligned_paired)
+    print(f"CKA Cross-Modal: {cka:.4f}")
 
     # --- Modality gap ---
     embs_mnist1d_align_rotated = embs_mnist1d_align @ Q.T
@@ -109,7 +114,9 @@ i2s  = [results[s]["recall_i2s"] for s in seeds]
 ckas = [results[s]["cka"] for s in seeds]
 print(f"Recall@5  Sig→Img : {np.mean(s2i):.4f} ± {np.std(s2i):.4f}")
 print(f"Recall@5  Img→Sig : {np.mean(i2s):.4f} ± {np.std(i2s):.4f}")
-print(f"CKA               : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
+
+print("\n=== CKA Cross-Modal (geometria img vs sig) ===")
+print(f"CKA Cross-Modal   : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
 
 avg_eigenvalues = torch.stack([results[s]["eigenvalues"] for s in seeds]).mean(dim=0)
 os.makedirs("checkpoints/analysis", exist_ok=True)

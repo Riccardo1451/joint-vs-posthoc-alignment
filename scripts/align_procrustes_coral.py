@@ -22,10 +22,10 @@ import numpy as np
 
 from models.unimodal import UnimodalModelMnist1D, UnimodalModelDigits
 from data.dataset import load_all_datasets
-from data.dataloader import build_paired_dataset
+from data.dataloader import build_paired_dataset, build_paired_test
 from methods.procrustes import procrustes_align
 from methods.coral import coral_align
-from utils.metrics import recall_at_k, evaluate_cka, compute_modality_gap
+from utils.metrics import recall_at_k, compute_crossmodal_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
 
 os.makedirs("figures/procrustes_coral", exist_ok=True)
@@ -80,10 +80,37 @@ for seed in seeds:
     recall_i2s = recall_at_k(embs_digits_test, y_digits_test, mnist1d_coral, y_mnist1d_test, k=5)
     print(f"Recall@5  Sig→Img: {recall_s2i:.4f}  Img→Sig: {recall_i2s:.4f}")
 
-    # --- CKA ---
-    n = min(len(embs_digits_test), len(mnist1d_coral))
-    cka = evaluate_cka(None, None, None, None, device, emb1=mnist1d_coral[:n], emb2=embs_digits_test[:n])
-    print(f"CKA: {cka:.4f}")
+    # --- CKA Cross-Modal (paired test set) ---
+    # Derive CORAL transform parameters from the full test set so the same
+    # whitening/coloring is applied to the smaller paired subset.
+    paired_test = build_paired_test(digits_dataset, mnist1d_dataset, seed=42)
+    with torch.no_grad():
+        embs_digits_paired  = model_digits.get_embedding(
+            torch.from_numpy(paired_test["X_digits"]).to(device))
+        embs_mnist1d_paired = model_mnist1d.get_embedding(
+            torch.from_numpy(paired_test["X_mnist1d"]).to(device))
+
+    embs_mnist1d_paired_proc = embs_mnist1d_paired @ Q.T
+
+    src_np = mnist1d_procrustes.detach().cpu().numpy()
+    tgt_np = embs_digits_test.detach().cpu().numpy()
+    mean_S = src_np.mean(axis=0)
+    mean_T = tgt_np.mean(axis=0)
+    cov_S  = np.cov(src_np, rowvar=False)
+    cov_T  = np.cov(tgt_np, rowvar=False)
+    eigvals_s, eigvecs_s = np.linalg.eigh(cov_S)
+    eigvals_t, eigvecs_t = np.linalg.eigh(cov_T)
+    eigvals_s = np.clip(eigvals_s, 1e-8, None)
+    eigvals_t = np.clip(eigvals_t, 1e-8, None)
+    W_coral = (eigvecs_s @ np.diag(1.0 / np.sqrt(eigvals_s)) @ eigvecs_s.T
+               @ eigvecs_t @ np.diag(np.sqrt(eigvals_t)) @ eigvecs_t.T)
+
+    paired_proc_np = embs_mnist1d_paired_proc.detach().cpu().numpy()
+    embs_mnist1d_paired_coral = torch.tensor(
+        (paired_proc_np - mean_S) @ W_coral + mean_T, dtype=torch.float32).to(device)
+
+    cka = compute_crossmodal_cka(embs_digits_paired, embs_mnist1d_paired_coral)
+    print(f"CKA Cross-Modal: {cka:.4f}")
 
     # --- Modality gap ---
     embs_mnist1d_align_coral = coral_align(embs_mnist1d_align @ Q.T, embs_digits_align, device=device)
@@ -107,7 +134,9 @@ i2s = [results[s]["recall_i2s"] for s in seeds]
 ckas = [results[s]["cka"] for s in seeds]
 print(f"Recall@5  Sig→Img : {np.mean(s2i):.4f} ± {np.std(s2i):.4f}")
 print(f"Recall@5  Img→Sig : {np.mean(i2s):.4f} ± {np.std(i2s):.4f}")
-print(f"CKA               : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
+
+print("\n=== CKA Cross-Modal (geometria img vs sig) ===")
+print(f"CKA Cross-Modal   : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
 
 avg_eigenvalues = torch.stack([results[s]["eigenvalues"] for s in seeds]).mean(dim=0)
 plot_eigenspectrum(

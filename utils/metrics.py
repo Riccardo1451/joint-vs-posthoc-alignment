@@ -33,6 +33,17 @@ def compute_cka(X: Tensor, Y: Tensor) -> float:
     return (hsic_kl / torch.sqrt(hsic_kk * hsic_ll)).item()
 
 
+def compute_crossmodal_cka(emb_img: Tensor, emb_sig: Tensor) -> float:
+    """
+    Cross-modal CKA between image and signal embeddings paired by class.
+
+    Computes CKA(emb_img, emb_sig) without concatenating the two spaces.
+    Both tensors must be row-paired: row i of emb_img and row i of emb_sig
+    must belong to the same class (use build_paired_test to guarantee this).
+    """
+    return compute_cka(emb_img, emb_sig)
+
+
 # ---------------------------------------------------------------------------
 # Retrieval metrics
 # ---------------------------------------------------------------------------
