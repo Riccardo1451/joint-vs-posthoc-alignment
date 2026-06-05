@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 import numpy as np
 
-from models.unimodal import UnimodalModelMnist1D, UnimodalModelDigits
+from models.unimodal import UnimodalModelMnist1DCNN, UnimodalModelDigitsCNN
 from data.dataset import load_all_datasets
 from data.dataloader import build_paired_dataset, build_paired_test
 from methods.procrustes import procrustes_align
@@ -38,8 +38,8 @@ seeds        = [42, 123, 999]
 force_reload = False
 results      = {}
 
-model_mnist1d = UnimodalModelMnist1D().to(device)
-model_digits  = UnimodalModelDigits().to(device)
+model_mnist1d = UnimodalModelMnist1DCNN().to(device)
+model_digits  = UnimodalModelDigitsCNN().to(device)
 
 for seed in seeds:
     print(f"\n--- Seed {seed} ---")
@@ -47,8 +47,8 @@ for seed in seeds:
     digits_dataset, mnist1d_dataset = load_all_datasets(force_reload=force_reload, seed=seed)
     align_set = build_paired_dataset(digits_dataset, mnist1d_dataset, seed=seed)
 
-    model_mnist1d.load_state_dict(torch.load(f"checkpoints/unimodal/mnist1d_seed{seed}.pth", weights_only=True))
-    model_digits.load_state_dict(torch.load(f"checkpoints/unimodal/digits_seed{seed}.pth", weights_only=True))
+    model_mnist1d.load_state_dict(torch.load(f"checkpoints/unimodal/cnn_mnist1d_seed{seed}.pth", weights_only=True))
+    model_digits.load_state_dict(torch.load(f"checkpoints/unimodal/cnn_digits_seed{seed}.pth", weights_only=True))
     model_mnist1d.eval()
     model_digits.eval()
 

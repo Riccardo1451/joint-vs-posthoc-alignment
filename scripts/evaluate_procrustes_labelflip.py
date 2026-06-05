@@ -22,17 +22,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import torch
 import numpy as np
 
-from models.unimodal import UnimodalModelMnist1D, UnimodalModelDigits
+from models.unimodal import UnimodalModelMnist1DCNN, UnimodalModelDigitsCNN
 from data.dataset import load_all_datasets
-from data.dataloader import build_paired_dataset, build_paired_test_set
+from data.dataloader import build_paired_dataset, build_paired_test
 from methods.procrustes import procrustes_align
 from methods.coral import coral_align
-from utils.metrics import recall_at_k, evaluate_cka, compute_modality_gap
+from utils.metrics import recall_at_k, compute_crossmodal_cka, compute_modality_gap
 
 # ---------------------------------------------------------------------------
 seeds        = [42, 123, 999]
 flip_rates   = [0.0, 0.05, 0.1, 0.2, 0.3]
-use_coral    = True
+use_coral    = False
 force_reload = False
 mode         = "cnn"  # "mlp" or "cnn"
 # ---------------------------------------------------------------------------
@@ -49,15 +49,15 @@ def _ckpt_path(modality, seed, flip_rate):
 
 
 digits_dataset, mnist1d_dataset = load_all_datasets(force_reload=force_reload, seed=seeds[0])
-paired_test = build_paired_test_set(digits_dataset, mnist1d_dataset, seed=42)
+paired_test = build_paired_test(digits_dataset, mnist1d_dataset, seed=42)
 
-model_mnist1d = UnimodalModelMnist1D(mode=mode).to(device)
-model_digits  = UnimodalModelDigits(mode=mode).to(device)
+model_mnist1d = UnimodalModelMnist1DCNN().to(device)
+model_digits  = UnimodalModelDigitsCNN().to(device)
 
 # ---------------------------------------------------------------------------
 print(f"\n{'flip_rate':>10}  {'Recall S→I':>22}  {'Recall I→S':>22}  "
-      f"{'CKA':>15}  {'Proc_error':>18}  {'|mu_e|':>14}  {'tr(Sigma_e)':>17}")
-print("-" * 128)
+      f"{'CKA Cross-Modal':>22}  {'Proc_error':>18}  {'|mu_e|':>14}  {'tr(Sigma_e)':>17}")
+print("-" * 135)
 
 for flip_rate in flip_rates:
     recalls_s2i, recalls_i2s, ckas = [], [], []
@@ -110,9 +110,23 @@ for flip_rate in flip_rates:
                 torch.from_numpy(paired_test["X_digits"]).to(device))
         mnist1d_paired_aligned = embs_mnist1d_paired @ Q.T
         if use_coral:
-            mnist1d_paired_aligned = coral_align(mnist1d_paired_aligned, embs_digits_paired, device=device)
-        cka = evaluate_cka(None, None, None, None, device,
-                           emb1=mnist1d_paired_aligned, emb2=embs_digits_paired)
+            # Derive CORAL transform from full test set statistics and apply to paired subset
+            src_np = (embs_mnist1d_test @ Q.T).detach().cpu().numpy()
+            tgt_np = embs_digits_test.detach().cpu().numpy()
+            mean_S = src_np.mean(axis=0)
+            mean_T = tgt_np.mean(axis=0)
+            cov_S  = np.cov(src_np, rowvar=False)
+            cov_T  = np.cov(tgt_np, rowvar=False)
+            eigvals_s, eigvecs_s = np.linalg.eigh(cov_S)
+            eigvals_t, eigvecs_t = np.linalg.eigh(cov_T)
+            eigvals_s = np.clip(eigvals_s, 1e-8, None)
+            eigvals_t = np.clip(eigvals_t, 1e-8, None)
+            W_coral = (eigvecs_s @ np.diag(1.0 / np.sqrt(eigvals_s)) @ eigvecs_s.T
+                       @ eigvecs_t @ np.diag(np.sqrt(eigvals_t)) @ eigvecs_t.T)
+            paired_proc_np = mnist1d_paired_aligned.detach().cpu().numpy()
+            mnist1d_paired_aligned = torch.tensor(
+                (paired_proc_np - mean_S) @ W_coral + mean_T, dtype=torch.float32).to(device)
+        cka = compute_crossmodal_cka(embs_digits_paired, mnist1d_paired_aligned)
 
         # Modality gap on alignment set after rotation (and optional CORAL)
         embs_mnist1d_align_rot = embs_mnist1d_align @ Q.T
