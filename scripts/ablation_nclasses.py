@@ -145,7 +145,7 @@ for n_classes in n_classes_list:
             y_tr  = torch.from_numpy(data["y_train"]).to(device)
             X_te  = torch.from_numpy(data["X_test"]).to(device)
             y_te  = torch.from_numpy(data["y_test"]).to(device)
-            loader = DataLoader(TensorDataset(X_tr, y_tr), batch_size=uni_batch_size, shuffle=True)
+            loader = DataLoader(TensorDataset(X_tr, y_tr), batch_size=uni_batch_size, shuffle=True, drop_last=True)
 
             pbar = tqdm.tqdm(range(uni_epochs), desc=f"Unimodal {tag} nc={n_classes} s={seed}")
             for epoch in pbar:
