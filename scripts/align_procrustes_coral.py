@@ -112,14 +112,23 @@ for seed in seeds:
     cka = compute_crossmodal_cka(embs_digits_paired, embs_mnist1d_paired_coral)
     print(f"CKA Cross-Modal: {cka:.4f}")
 
-    # --- Modality gap ---
+    # --- Modality gap IN-SAMPLE (alignment set, same data used to fit Q + CORAL) ---
     embs_mnist1d_align_coral = coral_align(embs_mnist1d_align @ Q.T, embs_digits_align, device=device)
     _, _, eigenvalues, mu_norm, cov_trace = compute_modality_gap(embs_digits_align, embs_mnist1d_align_coral)
-    print(f"Modality gap  |mu|: {mu_norm:.4f}  tr(Σ): {cov_trace:.4f}")
+    print(f"Modality gap [IN-SAMPLE]  |mu|: {mu_norm:.4f}  tr(Σ): {cov_trace:.4f}")
+
+    # --- Modality gap OUT-OF-SAMPLE (held-out paired test) + centroid Procrustes distance dP ---
+    _, _, _, mu_norm_oos, cov_trace_oos = compute_modality_gap(embs_digits_paired, embs_mnist1d_paired_coral)
+    y_paired = torch.from_numpy(paired_test["y"]).to(device)
+    centroids_digits  = torch.stack([embs_digits_paired[y_paired == c].mean(dim=0) for c in range(10)])
+    centroids_mnist1d = torch.stack([embs_mnist1d_paired_coral[y_paired == c].mean(dim=0) for c in range(10)])
+    dP_oos = torch.norm(centroids_digits - centroids_mnist1d, p='fro').item()
+    print(f"Modality gap [OOS]        |mu|: {mu_norm_oos:.4f}  tr(Σ): {cov_trace_oos:.4f}  dP: {dP_oos:.4f}")
 
     results[seed] = {
         "recall_s2i": recall_s2i, "recall_i2s": recall_i2s,
         "cka": cka, "eigenvalues": eigenvalues,
+        "mu_oos": mu_norm_oos.item(), "cov_oos": cov_trace_oos, "dP_oos": dP_oos,
     }
 
     # --- t-SNE ---
@@ -137,6 +146,14 @@ print(f"Recall@5  Img→Sig : {np.mean(i2s):.4f} ± {np.std(i2s):.4f}")
 
 print("\n=== CKA Cross-Modal (geometria img vs sig) ===")
 print(f"CKA Cross-Modal   : {np.mean(ckas):.4f} ± {np.std(ckas):.4f}")
+
+print("\n=== Modality gap OUT-OF-SAMPLE (per Tabella 8/9, comparabile con ablation) ===")
+mus_oos  = [results[s]["mu_oos"]  for s in seeds]
+covs_oos = [results[s]["cov_oos"] for s in seeds]
+dPs_oos  = [results[s]["dP_oos"]  for s in seeds]
+print(f"|mu_e|  [OOS] : {np.mean(mus_oos):.4f} ± {np.std(mus_oos):.4f}")
+print(f"tr(Σ_e) [OOS] : {np.mean(covs_oos):.4f} ± {np.std(covs_oos):.4f}")
+print(f"dP (centroidi): {np.mean(dPs_oos):.4f} ± {np.std(dPs_oos):.4f}")
 
 avg_eigenvalues = torch.stack([results[s]["eigenvalues"] for s in seeds]).mean(dim=0)
 plot_eigenspectrum(

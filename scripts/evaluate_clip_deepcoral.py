@@ -23,7 +23,7 @@ import numpy as np
 from itertools import combinations
 
 from data.dataset import load_all_datasets
-from data.dataloader import build_paired_dataset, build_paired_test
+from data.dataloader import build_paired_test
 from models.clip_model import CLIPModel
 from utils.metrics import evaluate_cka, compute_crossmodal_cka, compute_modality_gap
 from utils.visualization import plot_tsne, plot_eigenspectrum
@@ -102,21 +102,26 @@ plot_tsne(z_img, z_sig,
 # ---------------------------------------------------------------------------
 # Modality gap eigenspectrum vs Procrustes
 # ---------------------------------------------------------------------------
-print("\n--- Modality gap eigenspectrum ---")
+print("\n--- Modality gap eigenspectrum (OUT-OF-SAMPLE, held-out paired test) ---")
 eigenvalues_list = []
+mus_oos, covs_oos = [], []
 for seed in seeds:
     m = CLIPModel(hidden_dim=hidden_dim, projection_dim=projection_dim, mode=mode).to(device)
     m.load_state_dict(torch.load(ckpt(seed), weights_only=True))
     m.eval()
-    align_set = build_paired_dataset(digits_data, mnist1d_data, seed=seed)
     with torch.no_grad():
         z_sig, z_img = m(
-            torch.from_numpy(align_set["X_mnist1d"]).to(device),
-            torch.from_numpy(align_set["X_digits"]).to(device),
+            torch.from_numpy(paired_test["X_mnist1d"]).to(device),
+            torch.from_numpy(paired_test["X_digits"]).to(device),
         )
     _, _, eigenvalues, mu_norm, cov_trace = compute_modality_gap(z_img, z_sig)
     print(f"Seed {seed}  |mu|: {mu_norm:.4f}  tr(Σ): {cov_trace:.4f}")
     eigenvalues_list.append(eigenvalues)
+    mus_oos.append(mu_norm.item())
+    covs_oos.append(cov_trace)
+
+print(f"|mu_e|  [OOS] : {np.mean(mus_oos):.4f} ± {np.std(mus_oos):.4f}")
+print(f"tr(Σ_e) [OOS] : {np.mean(covs_oos):.4f} ± {np.std(covs_oos):.4f}")
 
 avg_eigenvalues = torch.stack(eigenvalues_list).mean(dim=0)
 plot_eigenspectrum(
