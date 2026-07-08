@@ -6,6 +6,8 @@ Run from the project root:
     python scripts/train_unimodal.py --modality digits
     python scripts/train_unimodal.py --modality mnist1d
     python scripts/train_unimodal.py --modality both   (default)
+    python scripts/train_unimodal.py --arch cnn        (default, required by align_procrustes.py)
+    python scripts/train_unimodal.py --arch mlp
 """
 
 import sys
@@ -21,7 +23,10 @@ import tqdm
 from torch.utils.data import DataLoader, TensorDataset
 
 from data.dataset import load_digits_dataset, load_mnist1d_dataset
-from models.unimodal import UnimodalModelDigits, UnimodalModelMnist1D
+from models.unimodal import (
+    UnimodalModelDigits, UnimodalModelMnist1D,
+    UnimodalModelDigitsCNN, UnimodalModelMnist1DCNN,
+)
 
 os.makedirs("checkpoints/unimodal", exist_ok=True)
 
@@ -38,7 +43,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 
-def train_digits():
+def train_digits(arch):
     for seed in SEEDS:
         torch.manual_seed(seed)
         np.random.seed(seed)
@@ -50,7 +55,7 @@ def train_digits():
         y_test  = torch.from_numpy(data["y_test"]).to(device)
 
         dataloader = DataLoader(TensorDataset(X_train, y_train), batch_size=BATCH_SIZE, shuffle=True)
-        model = UnimodalModelDigits().to(device)
+        model = (UnimodalModelDigitsCNN() if arch == "cnn" else UnimodalModelDigits()).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -73,12 +78,12 @@ def train_digits():
                     acc = (predicted == y_test).float().mean().item()
                 pbar.write(f"Epoch {epoch+1}/{NUM_EPOCHS}  Test Acc: {acc:.4f}")
 
-        ckpt = f"checkpoints/unimodal/digits_seed{seed}.pth"
+        ckpt = f"checkpoints/unimodal/{arch}_digits_seed{seed}.pth"
         torch.save(model.state_dict(), ckpt)
         print(f"Saved → {ckpt}")
 
 
-def train_mnist1d():
+def train_mnist1d(arch):
     for seed in SEEDS:
         torch.manual_seed(seed)
         np.random.seed(seed)
@@ -90,7 +95,7 @@ def train_mnist1d():
         y_test  = torch.from_numpy(data["y_test"]).to(device)
 
         dataloader = DataLoader(TensorDataset(X_train, y_train), batch_size=BATCH_SIZE, shuffle=True)
-        model = UnimodalModelMnist1D().to(device)
+        model = (UnimodalModelMnist1DCNN() if arch == "cnn" else UnimodalModelMnist1D()).to(device)
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -113,7 +118,7 @@ def train_mnist1d():
                     acc = (predicted == y_test).float().mean().item()
                 pbar.write(f"Epoch {epoch+1}/{NUM_EPOCHS}  Test Acc: {acc:.4f}")
 
-        ckpt = f"checkpoints/unimodal/mnist1d_seed{seed}.pth"
+        ckpt = f"checkpoints/unimodal/{arch}_mnist1d_seed{seed}.pth"
         torch.save(model.state_dict(), ckpt)
         print(f"Saved → {ckpt}")
 
@@ -126,9 +131,15 @@ if __name__ == "__main__":
         default="both",
         help="Which modality to train (default: both)",
     )
+    parser.add_argument(
+        "--arch",
+        choices=["cnn", "mlp"],
+        default="cnn",
+        help="Encoder architecture (default: cnn)",
+    )
     args = parser.parse_args()
 
     if args.modality in ("digits", "both"):
-        train_digits()
+        train_digits(args.arch)
     if args.modality in ("mnist1d", "both"):
-        train_mnist1d()
+        train_mnist1d(args.arch)
